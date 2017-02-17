@@ -6,6 +6,7 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import org.eclipse.jgit.api.Git;
@@ -90,6 +91,83 @@ public class DetectRClone {
 			e.printStackTrace();
 		}
 
+	}
+
+	public static void createCloneMap(String in){
+		BufferedReader br = getBufferedReader(in);
+		HashMap<Integer,ArrayList<CodeClone>> cloneMap = new HashMap<Integer,ArrayList<CodeClone>>();
+		try{
+			String str = br.readLine();
+			boolean find = false;
+			while(str != null){
+				if(str.equals("clone_pairs {")){
+					find = true;
+				}else if(str.equals("}")){
+					find = false;
+				}else if(find){
+					String[] str_split = str.split("[.,\\-\t]",0);
+					CodeClone clone1 = new CodeClone();
+					clone1.id = Integer.parseInt(str_split[0]);
+					clone1.fid = Integer.parseInt(str_split[1]);
+					clone1.sid = Integer.parseInt(str_split[2]);
+					clone1.eid = Integer.parseInt(str_split[3]);
+					CodeClone clone2 = new CodeClone();
+					clone2.id = Integer.parseInt(str_split[0]);
+					clone2.fid = Integer.parseInt(str_split[4]);
+					clone2.sid = Integer.parseInt(str_split[5]);
+					clone2.eid = Integer.parseInt(str_split[6]);
+
+					int id1 = -1;
+					int id2 = -1;
+
+					if(cloneMap.containsKey(clone1.fid)){
+						id1 = getIndex(cloneMap.get(clone1.fid), clone1);
+					}else{
+						cloneMap.put(clone1.fid, new ArrayList<CodeClone>());
+					}
+
+					if(cloneMap.containsKey(clone2.fid)){
+						id1 = getIndex(cloneMap.get(clone2.fid), clone2);
+					}else{
+						cloneMap.put(clone2.fid, new ArrayList<CodeClone>());
+					}
+
+					if(id1 == -1 && id2 == -1){
+						cloneMap.get(clone1.fid).add(clone1);
+						cloneMap.get(clone2.fid).add(clone2);
+						CloneSet cloneset = new CloneSet();
+						clone1.cloneset = cloneset;
+						clone2.cloneset = cloneset;
+						cloneset.id = clone1.id;
+						cloneset.cloneList.add(clone1);
+						cloneset.cloneList.add(clone2);
+					}else if(id1 != -1 && id2 == -1){
+						cloneMap.get(clone2.fid).add(clone2);
+						CloneSet cloneset = cloneMap.get(clone1.fid).get(id1).cloneset;
+						clone2.cloneset = cloneset;
+						cloneset.cloneList.add(clone2);
+					}else if(id1 == -1 && id2 != -1){
+						cloneMap.get(clone1.fid).add(clone1);
+						CloneSet cloneset = cloneMap.get(clone2.fid).get(id2).cloneset;
+						clone1.cloneset = cloneset;
+						cloneset.cloneList.add(clone1);
+					}
+				}
+				str=br.readLine();
+			}
+		}catch(IOException e){
+			System.err.println(e.getMessage());
+		}
+	}
+
+	public static int getIndex(ArrayList<CodeClone>list, CodeClone clone){
+		for(int i=0;i<list.size();i++){
+			CodeClone c = list.get(i);
+			if(clone.sid == c.sid && clone.eid == c.eid){
+				return i;
+			}
+		}
+		return -1;
 	}
 
 	public static void buildRepository(String path) throws IOException{
